@@ -43,6 +43,39 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install nasm -y
 
+      # Cache Rust compilation artifacts (the biggest time saver)
+      - name: Cache Cargo registry + build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/wasm32-unknown-unknown
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Cache the Closure Compiler JAR (downloaded on first `make` that needs it)
+      - name: Cache Closure Compiler
+        uses: actions/cache@v4
+        with:
+          path: closure-compiler/
+          key: ${{ runner.os }}-closure-compiler
+          restore-keys: |
+            ${{ runner.os }}-closure-compiler
+
+      # Cache the compiled softfloat.o and zstddeclib.o C objects
+      - name: Cache C object files
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/softfloat.o
+            build/zstddeclib.o
+          key: ${{ runner.os }}-cobjects-${{ hashFiles('lib/softfloat/**', 'lib/zstd/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cobjects-
+
       - name: Build v86
         run: make all
 
@@ -78,6 +111,13 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          path: _site
+
+      # Optional: downloadable zip of the site for hosting elsewhere
+      - name: Upload site as downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v86-site
           path: _site
 
   deploy:

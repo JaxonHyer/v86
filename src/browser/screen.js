@@ -208,6 +208,11 @@ export function ScreenAdapter(options, screen_fill_buffer)
         const row_extra_1_y = 0;
         const row_extra_2_y = font_height;
 
+        if(gfx_width === 0)
+        {
+            return 0;
+        }
+
         let n_rows_rendered = 0;
         for(let row_i = 0, row_y = 0, txt_i = 0; row_i < text_mode_height; ++row_i, row_y += font_height)
         {
@@ -221,7 +226,8 @@ export function ScreenAdapter(options, screen_fill_buffer)
             // clear extra row 2
             offscreen_extra_context.clearRect(0, row_extra_2_y, gfx_width, font_height);
 
-            let fg_rgba, fg_x, bg_rgba, bg_x;
+            // initialise to work around closure compiler bug (#1640)
+            let fg_rgba = undefined, fg_x, bg_rgba = undefined, bg_x;
             for(let col_x = 0; col_x < gfx_width; col_x += font_width, txt_i += TEXT_BUF_COMPONENT_SIZE)
             {
                 const chr = text_mode_data[txt_i + CHARACTER_INDEX];
@@ -505,6 +511,21 @@ export function ScreenAdapter(options, screen_fill_buffer)
         cursor_element.classList.add("blinking-cursor");
     };
 
+    /**
+     * Invalidates text rendering state.  This means the next set of
+     * calls to set_font_bitmap, set_size_text, etc will be working
+     * from a fresh slate even if the dimensions of the loaded state
+     * differ from the current dimensions.
+     */
+    this.clear_text_state = function() {
+        font_width = null;
+        font_height = null;
+        text_mode_width = null;
+        text_mode_height = null;
+        font_page_a = null;
+        font_page_b = null;
+    };
+
     this.set_mode = function(graphical)
     {
         mode = graphical ? MODE_GRAPHICAL : (options.use_graphical_text ? MODE_GRAPHICAL_TEXT : MODE_TEXT);
@@ -617,6 +638,7 @@ export function ScreenAdapter(options, screen_fill_buffer)
         }
 
         changed_rows = new Int8Array(rows);
+        changed_rows.fill(1);
         text_mode_data = new Int32Array(cols * rows * TEXT_BUF_COMPONENT_SIZE);
 
         text_mode_width = cols;
